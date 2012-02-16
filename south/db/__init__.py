@@ -54,12 +54,19 @@ else:
             )
             sys.exit(1)
 
+
+class LazyDBRegistry(dict):
+    def __missing__(self, alias):
+        ops = module.DatabaseOperations(alias)
+        self[alias] = ops
+        return ops
+
 # Now, turn that into a dict of <alias: south db module>
-dbs = {}
+dbs = LazyDBRegistry()
+
 try:
-    for alias, module_name in db_engines.items():
+    for _, module_name in db_engines.items():
         module = __import__(module_name, {}, {}, [''])
-        dbs[alias] = module.DatabaseOperations(alias)
 except ImportError:
     # This error should only be triggered on 1.1 and below.
     sys.stderr.write(
@@ -71,6 +78,6 @@ except ImportError:
         ) % (module_name,)
     )
     sys.exit(1)
-    
+
 # Finally, to make old migrations work, keep 'db' around as the default database
 db = dbs[DEFAULT_DB_ALIAS]
